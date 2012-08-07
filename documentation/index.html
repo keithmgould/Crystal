@@ -1,0 +1,220 @@
+  <!DOCTYPE html>
+<html>
+ <head>
+  <meta charset="UTF-8">
+  <title>Crystal Api</title>
+  <link rel="stylesheet" type="text/css" href="./stylesheets/index.css" />
+ </head>
+ <body>
+  <section id="sidebar">
+    <a class="toc_title" href="#achievingTwitchGameplay">Achieving Twich Gameplay</a>
+    <ul class="toc_section">
+      <li>- <a href="#authorative">Authorative Server</a> </li>
+      <li>- <a href="#clientPrediction">Client-side Prediction</a> </li>
+      <li>- <a href="#prepdictFastforward">Predict-FastForward Algorithm</a> </li>
+      <li>- <a href="#interpolation">Interpolation</a> </li>
+    </ul>
+    <a class="toc_title" href="#setup">Setup</a>
+    <ul class="toc_section">
+      <li>- <a href="#entitiesFolder">Entities Folder</a></li>
+      <li>- <a href="#entityLoader">Entity Loader</a></li>
+      <li>- <a href="#constants">Constants File</a></li>
+    </ul>
+    <a class="toc_title" href="#server">Server Api</a>
+    <ul class="toc_section">
+      <li>- <a href="#socketConnected">Sub socketConnected</a></li>
+      <li>- <a href="#socketDisconnected">Sub socketDisconnected</a></li>
+      <li>- <a href="#messageFromClient">Sub messageFromClient</a></li>
+      <li>- <a href="#messageToClient">Pub messageToClient</a></li>
+      <li>- <a href="#broadcast">Pub broadcast</a></li>
+    </ul> 
+    <a class="toc_title" href="#client">Client Api</a>
+    <ul class="toc_section">
+      <li>- <a href="#messageToServer">Pub messageToServer</a></li>
+      <li>- <a href="#messageFromServer">Sub messageFromServer</a></li>
+      <li>- <a href="#enableDebugDraw">Pub enableDebugDraw</a></li>
+      <li>- <a href="#crystalDebug">Sub crystalDebug</a></li>
+    </ul>
+    <a class="toc_title" href="#common">Common Api</a>
+    <ul class="toc_section">
+      <li>- <a href="#addEntity">Pub addEntity</a></li>
+      <li>- <a href="#removeEntity">Pub removeEntity</a></li>
+      <li>- <a href="#update">Sub update</a></li>
+    </ul>
+    <a class="toc_title" href="#entities">Entities</a>
+    <ul>
+      <li>- <a href="#selfEntity">Self Entity</a> </li>
+      <li>- <a href="#concepts">Concepts</a> </li>
+      <li>- <a href="#circle">Circle</a> </li>
+      <li>- <a href="#rectangle">Box</a> </li>
+      <li>- <a href="#polygon">Polygon</a> </li>
+    </ul>
+    <a class="toc_title" href="#snapshots">Snapshots</a>
+    <a class="toc_title" href="#references">References</a>
+  </section>
+  <section id="content">
+    <h1>CRYSTAL.JS</h1>
+    <p>
+      Crystal is a real-time "twitch" game framework with server and browser side components, written entirely in Javascript.  It offers features normally found only in enterprise game engines, such as an authorative server, client side prediction, and position interpolation.  Crystal is powered by a great <a href="http://box2d-js.sourceforge.net/">2D Physics engine</a> which is run both on the server and client, allowing for a "zero-lag" experience.  You can read more about Crystal's features in the <a href="#achievingTwichGameplay">Achieving Twitch Gameplay</a> section below.  Crystal utilizes the <a href="https://github.com/ajacksified/Mediator.js">mediator</a> pattern to communicate with your game, and the API is also described below.
+    </p>
+        <h2 id="achievingTwitchGameplay">Achieving Twitch Gameplay</h2>
+    <p>
+      <b class="header"> Introduction</b>
+      "Twitch" gameplay means the gameplay is so fast that responsiveness within a few milliseconds matters .  When dealing with internet lag times (let's say 500 Ms), twitch gameplay can only be achieved with some fun sleight of hand.  Read below to see the solutions Crystal utilizes to achieve "twitch" gameplay in the browser even when facing crappy internet speeds.  See <a href="#references">references</a> below.
+    </p>
+    <p id="authorative">
+      <b class="header">Authorative Server</b>
+      A common question is why have an authorative server.  Why not have peer-to-peer connections?  That would be faster right?  Yes.  But it would allow for cheating.  And even if you knew the other player was cheating, who would you tell?  An authorative server prevents cheating (as best as it can).  This is especially crucial for Javascript based games where the code is out there, ready to be analysed and tampered with.  Crystal sports an authorative server, and any time the client tries something "not cool", the server comes down and obliterates the move in question.  You might be able to tamper with where a tank is on your own browser, but the rest of the players will see where your tank is SUPPOSED to be.  So stop cheating and just get better, K?
+    </p>
+    <p id="clientPrediction">
+      <b class="header">Client Side Prediction</b>
+      Assuming we have a 500 Ms (half second) lag time, that means if we press the right arrow to rotate right, it will take roughtly 250 Ms to get to the server and another 250 Ms to get back.  If you are trying to aim at a moving target, this type of lag will make you grind your teeth, and then smash in your monitor.  So Crystal helps you out with something called client-side prediction.  This means Crystal has a working copy of the physics engine, and is running the same simulation as the server.  THAT means client-side (in your browser), Crystal can predict how you will move when you try to rotate right, and it will do so Immediately.  Naturally, it will also fire off a message to the server, and when the client gets the response from the server, Crystal will make sure make sure everything is in sync.  The end result is you have ZERO (perceived) lag time when you move around.
+    </p>
+    <p id="predictFastForward">
+      <b class="header">Predict-FastForward Algorithm</b>
+      Even in the simplest case of a circle with some mass flying through frictionless space, we (as game architects) face a serious problem given the prediction technique discussed above.
+    </p>
+    <p id="interpolation">
+      <b class="header">Interpolation</b>
+      Crystal sends down "snapshots" of the game around 20 times a second (by default) from the server to the client.  If the client only rendered a frame twenty times a second, things would look jerky.  So Crystal interpolates the position of entities, meaning it figures out the positions inbetween the snapshots, allowing for a smoother experience.
+    </p>
+    <h2 id="setup">Setup</h2>
+    <p>
+      Crystal shares some files with your game.  These shared files must be in a certain place so Crystal can find them.  The directory where these shared files reside is require.js_root_directory/common/
+    </p>
+    <p id="entitiesFolder">
+      <b class="header">Entities Folder</b>
+      The location of the game's entities must be in require.js_root_directory/common/entities.  For more information about entities, see <a href="#entities">entities</a> below.
+    </p>
+    <p id="entityLoader">
+      <b class="header">Entity Loader</b>
+      EntityLoader is a required module that you must write.  It tells Crystal about the entities in the game. It's location must be require.js_root_directory/common/entityLoader.js.  Your game can include a custom entity directly, but it is simpler to give access to all of your entities
+      by including the EntityLoader module.  Todo: show example.
+    </p>
+    <p id="constants">
+      <b class="header">Constants File</b>
+      constants.js, also found in js_root_directory/common/ is a module returning a standard JS object with some important information.  See the 
+      example/common/constants.js file in the repo for an example
+    </p>
+    <h2 id="server">Server Side API</h2>
+    <p id="socketConnected">
+      <b class="header">socketConnected</b><code>Subscribe("socketConnected", function (data) {})</code>
+      data object contains:
+      <ul>
+        <li>socketId: string.  Socket ID of connecting client</li>
+      </ul>
+    </p>
+    <p id="socketDisconnected">
+      <b class="header">socketDisconnected</b><code>Subscribe("socketDisconnected", function (data) {})</code>
+      data object contains:
+      <ul>
+        <li>socketId: string.  Socket ID of disconnecting client</li>
+      </ul>
+    </p>
+    <p id="messageFromClient">
+      <b class="header">messageFromClient</b><code>Subscribe("messageFromClient", function (data) {})</code>
+      data object contains:
+      <ul>
+        <li>socketId: string.  Socket ID of connecting client</li>
+        <li>type: string.  category of message</li>
+        <li>message: js object.</li>
+      </ul>
+    </p>
+    <p id="messageToClient">
+      <b class="header">messageToClient</b><code>Publish("messageToClient", messageObject)</code>
+      <br />
+      sends a message to the client.  messageObject Structure:
+      <ul>
+        <li>socketId: string</li>
+        <li>type: string</li>
+        <li>message: JS object</li>
+      </ul>
+    </p>
+    <p id="broadcast">
+      <b class="header">broadcast</b><code>Publish("broadcast", messageObject)</code>
+      <br />
+      sends a message to all connected clients.  messageObject Structure:
+      <ul>  
+        <li>message: JS object</li>
+      </ul>
+    </p>
+    <h2 id="client">Client Side API</h2>
+    <p id="messageToServer">
+      <b class="header">messageToServer</b><code>Publish("messageToServer", messageObject)</code>
+      <br />
+      sends a message to server.  messageObject Structure:
+      <ul>  
+        <li>message: JS object</li>
+        <li>type: string.  type or category of message</li>
+      </ul>
+    </p>
+    <p id="messageFromServer">
+      <b class="header">messageFromServer</b><code>Subscribe("messageFromServer", messageObject)</code>
+      <br />
+      sends a message to server.  messageObject Structure:
+      <ul>  
+        <li>message: JS object</li>
+        <li>type: string.  type or category of message</li>
+      </ul>
+    </p>
+    <p id="crystalDebug">
+      <b class="header">crystalDebug</b><code>Subscribe("crystalDebug", data)</code>
+      <br />
+      Sends out debug data.  You should not normally need this.  the data payload is a hash and the key 'type' will be:
+      <ul>
+        <li>- lagInfo: holds the current and average (last 5 secs) lag</li>
+        <li>- snapshotInfo: the time between snapshots.  Defaults to 50Ms</li>
+      </ul>
+    </p>
+    <h2 id="common">Common</h2>
+    <p id="addEntity">
+      <b class="header">addEntity</b><code>Publish("addEntity", entity)</code>
+      <br />
+      Takes an entity and adds it to the physics engine simulation.  Note this should only be done server-side.  If done client-side ( lets say for client-side prediction), the local entity will be removed upon the next snapshot from the (authorative) server.  An entity will be an instance of the entity class (or subclass) found in in crystal/common/entity.js
+    </p>
+    <p id="removeEntity">
+      <b class="header">removeEntity</b><code>Publish("removeEntity", entity)</code>
+      <br />
+      Removes an entity from the physics engine simulation.  Note this should only be done server-side.  If done client-side ( lets say for client-side prediction), the local entity will be brought back upon the next snapshot from the (authorative) server.  An entity will be an instance of the entity class (or subclass) found in in crystal/common/entity.js
+    </p>
+    <p id="update">
+      <b class="header">update</b><code>Subscribe("update", data)</code>
+      <br />
+      The update is published sixty times per second.  The data object includes the tick count, so if you want something to happen three times per second you could do: <code>if(data.tickCount % 20 === 0)</code>
+    </p>
+    <h2 id="entities">Entities</h2>
+    <p id="concepts">
+      <b class="header">Concepts</b>
+      Any object in the physics engine simulation is referred to as an entity.  Crystal comes with a base "class" found in crystal/common/entity.js.  This extends the Backbone Model class, and thusly comes with lots of goodies.  You further extend the entity class into a js/common/entites/ folder (they must be in this location, see setup above), which can be read by both client and server. An entity model must have a few attributes to prepare it for the physics engine simulation, and these differ based on the shape of the entity.  Crystal comes with three shapes you can use: circle, rectangle, polygon.  The steps for making an entity and placing it in the simulation are as follows:
+      <ul>
+        <li>1) create the entity. </li>
+        <li>2) tell the physics engine about it with the addEntity Api method.</li>
+      </ul>
+      <div class="example">
+        myTank = new Tank();<br>
+        CrystalApi.Publish("addEntity", myTank);
+      </div>
+      TODO: talk about what each shape requires.
+    </p>
+
+    <p id="selfEntity">
+      <b class="header">Self Entity</b>
+      There is one special entity that is different from the rest of the entities in the simulation: the self Entity.  This entity is you, be it a tank, ship, etc...  And since Crystal's focus is on hiding lag from users, Crystal has to know when you send a command to the server to move your entity.
+    </p>
+    <h2 id="snapshots">Snapshots</h2>
+    <p>
+      Snapshots are descriptions of whats going on in the physics engine at a moment in time.  If there is a ship in space, the snapshot will convey the ships coordinates, its orientation, and its velocity.  The snapshot will contain this information for every entity in the simulation.  Crystal Server sends the Crystal client these snapshots 6 times per second (by default).  On the client side, these snapshots are processed by Crystal to ensure smoothe game play.  All of this is transparent to the game developer.  Your objects will just appear to move as they should, despite lag.
+    </p>
+    <h2 id="references">References</h2>
+    <p>
+    <ul>
+      <li>- <a href="http://buildnewgames.com/real-time-multiplayer/">Amazing demo of some Gaming techniques in HTML5</a></li>
+      <li>- <a href="https://developer.valvesoftware.com/wiki/Latency_Compensating_Methods_in_Client/Server_In-game_Protocol_Design_and_Optimization">Classic by Valve on Latency Compensation</a> </li>
+      <li>- <a href="https://developer.valvesoftware.com/wiki/Source_Multiplayer_Networking">Classic by Valve on Game Networking</a> </li>
+      <li>- <a href="http://gafferongames.com/networking-for-game-programmers/what-every-programmer-needs-to-know-about-game-networking/">What every programmer needs to know about game networking</a> </li>
+    </ul>
+    </p>
+
+  </section>
+ </body>
+</html>
