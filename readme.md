@@ -7,3 +7,5 @@ Crystal allows you to focus on your game, not the details of realizing a realtim
 Here is a working demo: http://keithmgould.cf2.nodejitsu.com/
 
 Here is the source to the demo: https://github.com/keithmgould/Crystal-Game-Framework-Demo
+
+Here is a post describing how Crystal works: http://keithgould.com/post/28875536272/realtime-inertial-multiplayer-games-in-html5
